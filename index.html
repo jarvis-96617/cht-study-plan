@@ -77,7 +77,7 @@
     }
 
     /* ===== 清單與卡片 ===== */
-    .list-container { padding: 14px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+    .list-container { padding: 14px; padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
     .card {
       background: var(--card); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px;
       border: 1px solid var(--line);
@@ -98,6 +98,27 @@
       font-weight: 600; font-family: inherit; transition: transform 0.1s, filter 0.15s;
     }
     .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+
+    /* 底部浮動的「上一步 / 下一步」復原列 */
+    .undo-bar {
+      position: fixed; left: 50%; transform: translateX(-50%);
+      bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 1100;
+      width: calc(100% - 28px); max-width: 520px;
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 2.5px solid var(--navy); border-radius: 999px;
+      padding: 5px; box-shadow: 0 8px 22px -8px rgba(47,64,88,0.35);
+    }
+    .undo-bar button {
+      flex: none; border: none; border-radius: 999px; padding: 9px 14px; font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer; background: var(--navy); color: #fff; transition: transform 0.1s, opacity 0.15s;
+    }
+    .undo-bar button:active { transform: scale(0.95); }
+    .undo-bar button:disabled { background: var(--slate-bg); color: var(--slate); cursor: default; transform: none; }
+    .undo-msg { flex: 1; min-width: 0; text-align: center; font-size: 12px; color: var(--navy-soft); font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .card.flash { animation: flash 1.4s ease-out; }
+    @keyframes flash { 0% { box-shadow: 0 0 0 3px var(--green); } 100% { box-shadow: 0 0 0 3px transparent; } }
     .btn-delay { background: var(--clay-bg); color: var(--clay); }
     .btn-undelay { background: var(--slate-bg); color: var(--navy-soft); }
     .btn-done { background: var(--green); color: #fff; }
@@ -155,6 +176,12 @@
   <div id="done" class="tab-content"></div>
 </div>
 
+<div class="undo-bar">
+  <button id="btn-undo" onclick="undo()" disabled>‹ 上一步</button>
+  <span class="undo-msg" id="undo-msg">尚無操作</span>
+  <button id="btn-redo" onclick="redo()" disabled>下一步 ›</button>
+</div>
+
 <script>
 // ⭐ 請將下方的網址換成您的 Apps Script 網址
 const API_URL = 'https://script.google.com/macros/s/AKfycbz3PM_iuR90RG-FhmGe_tC-RCdS7QKdFSMyiNbo4RMI5abtYyBseN4xqYJXT3NOnjf5/exec';
@@ -173,6 +200,22 @@ function getOptions(max, selectedValue) {
   return opts;
 }
 
+// 日期格式：2026/10/13 → 10/13 （二）
+function formatDate(raw) {
+  if (!raw) return '';
+  const str = String(raw);
+  let y, m, d;
+  const mt = str.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+  if (mt) { y = +mt[1]; m = +mt[2]; d = +mt[3]; }
+  else {
+    const dt = new Date(str); // 例如 Sheets 傳來的 ISO 格式
+    if (isNaN(dt)) return str;
+    y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate();
+  }
+  const wd = '日一二三四五六'[new Date(y, m - 1, d).getDay()];
+  return `${m}/${d} （${wd}）`;
+}
+
 async function loadData() {
   document.getElementById('loading').style.display = 'block';
   try {
@@ -186,7 +229,11 @@ async function loadData() {
   }
 }
 
-async function updateStatus(id, newStatus) {
+const STATUS_LABEL = { todo: '未完成', delayed: '延遲', done: '已完成' };
+let undoStack = [], redoStack = [];
+
+// 實際套用狀態並同步雲端
+async function applyStatus(id, newStatus) {
   const t = tasks.find(x => x.id === id);
   t.status = newStatus;
   render();
@@ -196,6 +243,64 @@ async function updateStatus(id, newStatus) {
     await fetch(`${API_URL}?action=updateStatus&id=${id}&status=${encodeURIComponent(sheetStatus)}`);
   } catch(e) {
     alert("雲端同步失敗，請檢查網路！");
+  }
+}
+
+function shortTitle(t) {
+  const s = String(t.title || '');
+  return s.length > 12 ? s.slice(0, 12) + '…' : s;
+}
+
+function refreshUndoBar(msg) {
+  document.getElementById('btn-undo').disabled = undoStack.length === 0;
+  document.getElementById('btn-redo').disabled = redoStack.length === 0;
+  if (msg) document.getElementById('undo-msg').textContent = msg;
+}
+
+// 一般操作（按鈕呼叫）：記錄到歷史，之後可以上一步
+function updateStatus(id, newStatus) {
+  const t = tasks.find(x => x.id === id);
+  if (!t || t.status === newStatus) return;
+  undoStack.push({ id, from: t.status, to: newStatus });
+  redoStack = [];
+  applyStatus(id, newStatus);
+  refreshUndoBar(`「${shortTitle(t)}」→ ${STATUS_LABEL[newStatus]}`);
+}
+
+// 上一步：還原最近一次操作，並自動切到該項目所在分頁
+function undo() {
+  const a = undoStack.pop();
+  if (!a) return;
+  redoStack.push(a);
+  applyStatus(a.id, a.from);
+  const t = tasks.find(x => x.id === a.id);
+  refreshUndoBar(`已還原「${shortTitle(t)}」→ ${STATUS_LABEL[a.from]}`);
+  focusTask(a.id, a.from);
+}
+
+// 下一步：重做剛剛還原的操作
+function redo() {
+  const a = redoStack.pop();
+  if (!a) return;
+  undoStack.push(a);
+  applyStatus(a.id, a.to);
+  const t = tasks.find(x => x.id === a.id);
+  refreshUndoBar(`「${shortTitle(t)}」→ ${STATUS_LABEL[a.to]}`);
+  focusTask(a.id, a.to);
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.target === name));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === name));
+}
+
+// 切換到項目所在分頁、捲動到該卡片並短暫標示
+function focusTask(id, status) {
+  showTab(status);
+  const el = document.getElementById('card-' + id);
+  if (el) {
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.classList.add('flash');
   }
 }
 
@@ -222,10 +327,10 @@ function render() {
   
   tasks.forEach(t => {
     counts[t.status]++;
-    let html = `<div class="card ${t.status === 'done' ? 'done' : ''}">
+    let html = `<div id="card-${t.id}" class="card ${t.status === 'done' ? 'done' : ''}">
       <div class="card-header">
         <span class="subject">${t.subject}</span>
-        <span class="date-time">📅 ${t.date} | ⏱ ${t.time}</span>
+        <span class="date-time">📅 ${formatDate(t.date)} | ⏱ ${t.time}</span>
       </div>
       <p class="card-title">${t.title}</p>`;
       
@@ -279,13 +384,7 @@ function render() {
 }
 
 document.querySelectorAll('.tab').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    const target = e.currentTarget;
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    target.classList.add('active');
-    document.getElementById(target.dataset.target).classList.add('active');
-  });
+  btn.addEventListener('click', (e) => showTab(e.currentTarget.dataset.target));
 });
 
 loadData();
