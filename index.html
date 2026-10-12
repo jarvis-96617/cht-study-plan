@@ -2,72 +2,148 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>中華電信讀書進度</title>
+  <meta name="theme-color" content="#f6f4ef">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="讀書進度">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- 設定 Apple 設備的 APP 圖示 -->
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="icon" type="image/png" href="icon.png">
   <style>
-    :root { --bg: #f4f5f7; --card: #ffffff; --primary: #1a73e8; --text: #3c4043; --text-light: #70757a; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: var(--bg); color: var(--text); }
-    
-    .header { position: sticky; top: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); z-index: 1000; padding: 12px 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-    .tabs { display: flex; gap: 6px; }
-    .tab { flex: 1; text-align: center; padding: 8px 0; font-size: 13px; font-weight: 600; border-radius: 8px; border: none; background: #e8eaed; color: #5f6368; cursor: pointer; transition: 0.2s; }
-    .tab.active[data-target="todo"] { background: #e8f0fe; color: var(--primary); }
-    .tab.active[data-target="delayed"] { background: #fef7e0; color: #b06000; }
-    .tab.active[data-target="done"] { background: #e6f4ea; color: #137333; }
-    
-    .progress-container { margin-top: 12px; font-size: 11px; color: var(--text-light); text-align: center; font-weight: 500; }
-    .progress-bar { background: #e8eaed; border-radius: 8px; height: 6px; width: 100%; margin-top: 6px; overflow: hidden; }
-    .progress-fill { background: var(--primary); height: 100%; transition: width 0.4s ease; }
-    
-    .list-container { padding: 10px; padding-bottom: 40px; }
-    .card { background: var(--card); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
-    .card.done { opacity: 0.55; filter: grayscale(100%); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .subject { font-size: 11px; background: #f1f3f4; padding: 3px 6px; border-radius: 4px; font-weight: 600; }
-    .date-time { font-size: 11px; color: var(--text-light); }
-    .card-title { font-size: 13.5px; font-weight: 700; margin: 0 0 8px 0; line-height: 1.4; }
-    
-    .controls { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
-    .btn { padding: 6px 12px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-    .btn-delay { background: #fce8e6; color: #c5221f; }
-    .btn-undelay { background: #e8eaed; color: #3c4043; }
-    .btn-done { background: #e6f4ea; color: #137333; }
-    
-    /* 這裡修改為下拉選單的樣式，讓外觀維持簡潔 */
-    .time-picker { display: flex; align-items: center; gap: 4px; font-size: 12px; background: #f8f9fa; padding: 6px 8px; border-radius: 6px; margin-bottom: 8px; }
-    .time-picker select { 
-      text-align: center; 
-      border: 1px solid #dadce0; 
-      border-radius: 4px; 
-      font-size: 13px; 
-      padding: 4px 6px; 
-      background-color: #fff;
-      appearance: none; /* 隱藏原生箭頭，讓畫面更乾淨 */
-      -webkit-appearance: none;
+    /* 色票取自 ICON：奶油白底、深藍灰線條、灰藍輔助線、鼠尾草綠進度 */
+    :root {
+      --bg: #f6f4ef;
+      --card: #fffefb;
+      --navy: #2f4058;
+      --navy-soft: #4a5a72;
+      --slate: #a9b0c0;
+      --slate-bg: #eceef2;
+      --track: #e4e3df;
+      --green: #5f9e83;
+      --green-deep: #3f7a61;
+      --green-bg: #e4f0e9;
+      --amber: #a8742a;
+      --amber-bg: #f6ecd9;
+      --clay: #a95a4e;
+      --clay-bg: #f5e4e0;
+      --line: #e8e5de;
+      --text: #2f4058;
+      --text-light: #7b8496;
     }
-    
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+      margin: 0; padding: 0; background-color: var(--bg); color: var(--text);
+    }
+
+    /* ===== Header ===== */
+    .header {
+      position: sticky; top: 0; z-index: 1000;
+      background: rgba(246, 244, 239, 0.92);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .brand img { width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 1px 4px rgba(47,64,88,0.18); }
+    .brand h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: 0.5px; color: var(--navy); }
+
+    .tabs { display: flex; gap: 2px; background: #ebe8e1; padding: 3px; border-radius: 14px; }
+    .tab {
+      flex: 1; text-align: center; padding: 8px 0; font-size: 13px; font-weight: 600;
+      border-radius: 11px; border: none; background: transparent; color: var(--text-light);
+      cursor: pointer; transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+      font-family: inherit;
+    }
+    .tab.active { background: var(--card); box-shadow: 0 1px 4px rgba(47,64,88,0.14); }
+    .tab.active[data-target="todo"] { color: var(--navy); }
+    .tab.active[data-target="delayed"] { color: var(--amber); }
+    .tab.active[data-target="done"] { color: var(--green-deep); }
+
+    /* 進度條：仿 ICON 底部的膠囊進度條 */
+    .progress-container { margin-top: 12px; font-size: 12px; color: var(--text-light); font-weight: 500; }
+    .progress-label { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .progress-label b { color: var(--navy); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .progress-bar {
+      border: 2.5px solid var(--navy); border-radius: 999px; padding: 2.5px;
+      background: var(--card); width: 100%;
+    }
+    .progress-track { background: var(--track); border-radius: 999px; height: 10px; overflow: hidden; }
+    .progress-fill {
+      background: linear-gradient(90deg, #6fae92, var(--green));
+      height: 100%; border-radius: 999px; transition: width 0.4s ease;
+    }
+
+    /* ===== 清單與卡片 ===== */
+    .list-container { padding: 14px; padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+    .card {
+      background: var(--card); border-radius: 16px; padding: 12px 14px; margin-bottom: 10px;
+      border: 1px solid var(--line);
+      box-shadow: 0 1px 3px rgba(47,64,88,0.06), 0 6px 14px -8px rgba(47,64,88,0.12);
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; }
+    .subject { font-size: 11.5px; background: var(--slate-bg); color: var(--navy-soft); padding: 3px 9px; border-radius: 999px; font-weight: 600; }
+    .date-time { font-size: 11px; color: var(--text-light); font-variant-numeric: tabular-nums; }
+    .card-title { font-size: 14px; font-weight: 700; margin: 0 0 10px 0; line-height: 1.5; color: var(--navy); }
+
+    .card.done { background: #fbfaf6; }
+    .card.done .card-title { color: var(--text-light); font-weight: 600; text-decoration: line-through; text-decoration-color: var(--slate); }
+    .card.done .subject { background: var(--green-bg); color: var(--green-deep); }
+
+    .controls { display: flex; justify-content: flex-end; gap: 8px; align-items: center; }
+    .btn {
+      padding: 8px 14px; font-size: 12.5px; border: none; border-radius: 999px; cursor: pointer;
+      font-weight: 600; font-family: inherit; transition: transform 0.1s, filter 0.15s;
+    }
+    .btn:active { transform: scale(0.96); }
+    .btn-delay { background: var(--clay-bg); color: var(--clay); }
+    .btn-undelay { background: var(--slate-bg); color: var(--navy-soft); }
+    .btn-done { background: var(--green); color: #fff; }
+
+    /* 延遲時的時間選擇器 */
+    .time-picker {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12.5px; color: var(--navy-soft);
+      background: var(--amber-bg); padding: 8px 10px; border-radius: 12px; margin-bottom: 10px;
+    }
+    .time-picker select {
+      text-align: center; text-align-last: center;
+      border: 1px solid #e3d3b3; border-radius: 8px; font-size: 14px; font-weight: 600;
+      padding: 5px 6px; min-width: 46px; color: var(--navy); background-color: #fffdf8;
+      font-family: inherit; font-variant-numeric: tabular-nums;
+      appearance: none; -webkit-appearance: none;
+    }
+
+    .empty { text-align: center; color: var(--text-light); font-size: 13px; padding: 48px 0; }
+
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    
-    #loading { text-align: center; padding: 20px; font-size: 14px; color: #70757a; display: none; }
+
+    #loading { text-align: center; padding: 16px; font-size: 13px; color: var(--text-light); display: none; }
+
+    .tab:focus-visible, .btn:focus-visible, .time-picker select:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   </style>
 </head>
 <body>
 
 <div class="header">
+  <div class="brand">
+    <img src="icon.png" alt="">
+    <h1>中華電信讀書進度</h1>
+  </div>
   <div class="tabs">
-    <button class="tab active" data-target="todo">⏳ 未完成 (<span id="count-todo">0</span>)</button>
-    <button class="tab" data-target="delayed">⚠️ 延遲 (<span id="count-delayed">0</span>)</button>
-    <button class="tab" data-target="done">✅ 已完成 (<span id="count-done">0</span>)</button>
+    <button class="tab active" data-target="todo">未完成 <span id="count-todo">0</span></button>
+    <button class="tab" data-target="delayed">延遲 <span id="count-delayed">0</span></button>
+    <button class="tab" data-target="done">已完成 <span id="count-done">0</span></button>
   </div>
   <div class="progress-container">
-    總進度：已完成 <span id="progress-text">0/0</span> 行程
-    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width: 0%;"></div></div>
+    <div class="progress-label">
+      <span>總進度</span>
+      <b id="progress-text">0 / 0</b>
+    </div>
+    <div class="progress-bar"><div class="progress-track"><div class="progress-fill" id="progress-fill" style="width: 0%;"></div></div></div>
   </div>
 </div>
 
@@ -137,6 +213,7 @@ async function syncTime(id, field, val) {
 }
 
 function render() {
+  const emptyText = { todo: '全部完成了，太棒了 🎉', delayed: '目前沒有延遲的項目', done: '還沒有完成的項目' };
   document.getElementById('todo').innerHTML = '';
   document.getElementById('delayed').innerHTML = '';
   document.getElementById('done').innerHTML = '';
@@ -154,13 +231,13 @@ function render() {
       
     if (t.status === 'todo') {
       html += `<div class="controls">
-        <button class="btn btn-delay" onclick="updateStatus(${t.id}, 'delayed')">⚠️ 標記延遲</button>
-        <button class="btn btn-done" onclick="updateStatus(${t.id}, 'done')">✅ 完成</button>
+        <button class="btn btn-delay" onclick="updateStatus(${t.id}, 'delayed')">標記延遲</button>
+        <button class="btn btn-done" onclick="updateStatus(${t.id}, 'done')">✓ 完成</button>
       </div>`;
     } else if (t.status === 'delayed') {
-      // 這裡將原本的 input 換成了 select，手機點擊時就會觸發原生滾輪
+      // 下拉選單：手機點擊時會觸發原生滾輪
       html += `<div class="time-picker">
-        📍 看到： 
+        📍 看到
         <select onchange="syncTime(${t.id}, 'h', this.value)">
           ${getOptions(23, t.h)}
         </select> 時
@@ -172,16 +249,23 @@ function render() {
         </select> 秒
       </div>
       <div class="controls">
-        <button class="btn btn-undelay" onclick="updateStatus(${t.id}, 'todo')">↩️ 回歸未完成</button>
-        <button class="btn btn-done" onclick="updateStatus(${t.id}, 'done')">✅ 完成</button>
+        <button class="btn btn-undelay" onclick="updateStatus(${t.id}, 'todo')">回歸未完成</button>
+        <button class="btn btn-done" onclick="updateStatus(${t.id}, 'done')">✓ 完成</button>
       </div>`;
     } else {
       html += `<div class="controls">
-        <button class="btn btn-undelay" onclick="updateStatus(${t.id}, 'todo')">↩️ 轉為未完成</button>
+        <button class="btn btn-undelay" onclick="updateStatus(${t.id}, 'todo')">轉為未完成</button>
       </div>`;
     }
     html += `</div>`;
     document.getElementById(t.status).innerHTML += html;
+  });
+
+  // 空清單提示
+  ['todo', 'delayed', 'done'].forEach(k => {
+    if (counts[k] === 0 && tasks.length > 0) {
+      document.getElementById(k).innerHTML = `<div class="empty">${emptyText[k]}</div>`;
+    }
   });
   
   document.getElementById('count-todo').innerText = counts.todo;
@@ -190,16 +274,17 @@ function render() {
   
   let total = tasks.length;
   let pct = total === 0 ? 0 : Math.round((counts.done / total) * 100);
-  document.getElementById('progress-text').innerText = `${counts.done} / ${total} (${pct}%)`;
+  document.getElementById('progress-text').innerText = `${counts.done} / ${total}（${pct}%）`;
   document.getElementById('progress-fill').style.width = pct + '%';
 }
 
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', (e) => {
+    const target = e.currentTarget;
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    e.target.classList.add('active');
-    document.getElementById(e.target.dataset.target).classList.add('active');
+    target.classList.add('active');
+    document.getElementById(target.dataset.target).classList.add('active');
   });
 });
 
